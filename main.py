@@ -1,10 +1,8 @@
 from flask import Flask, request
-import requests
+from g4f.client import Client
 
 app = Flask(__name__)
-
-# Tumhari copied key yahan paste karo (quotes ke andar)
-GEMINI_API_KEY = "AQ.Ab8RN6JaU3yOI-K0Gh08HtVknulvz2zDEFGSaV1RsZrQ_0eVtQ"
+client = Client()
 
 SYSTEM_PROMPT = """
 Tumhara naam Zoya AI hai. Tum ek super smart, friendly aur helpful AI ho.
@@ -15,7 +13,7 @@ Tum user ke saath ek dost ki tarah natural aur intelligent baatein karti ho. Emo
 
 @app.route('/')
 def home():
-    return "Zoya AI Gemini Server Live! 🚀"
+    return "Zoya AI Backend is Live! 🚀"
 
 @app.route('/zoya', methods=['GET'])
 def zoya_chat():
@@ -23,32 +21,30 @@ def zoya_chat():
     if not user_msg:
         return "Hey! Kuch poochho toh sahi 😊✨"
 
-    # Official Gemini API Endpoint
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={GEMINI_API_KEY}"
-    
-    headers = {'Content-Type': 'application/json'}
-    payload = {
-        "contents": [
-            {
-                "parts": [
-                    {"text": f"{SYSTEM_PROMPT}\nUser: {user_msg}\nZoya:"}
-                ]
-            }
-        ]
-    }
-
     try:
-        response = requests.post(url, headers=headers, json=payload, timeout=12)
-        data = response.json()
-        
-        if "candidates" in data and len(data["candidates"]) > 0:
-            reply = data["candidates"][0]["content"]["parts"][0]["text"]
-            return reply.strip()
-        else:
-            return "Zoya: Arey yaar, ek baar phirse bolna, samajh nahi aaya! 😊"
+        response = client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[
+                {"role": "system", "content": SYSTEM_PROMPT},
+                {"role": "user", "content": user_msg}
+            ]
+        )
+        reply = response.choices[0].message.content
+        return reply.strip()
 
     except Exception as e:
-        return "Zoya: Network me thodi dikkat hai, phirse try karo! 😅"
+        # Fallback to alternate fast engine
+        try:
+            response = client.chat.completions.create(
+                model="gpt-3.5-turbo",
+                messages=[
+                    {"role": "system", "content": SYSTEM_PROMPT},
+                    {"role": "user", "content": user_msg}
+                ]
+            )
+            return response.choices[0].message.content.strip()
+        except:
+            return "Zoya: Network issue hai, ek baar phirse try karo! 😅"
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000)
